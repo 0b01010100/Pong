@@ -1,0 +1,5 @@
+Vendor/*
+out/
+build/
+.vs/
+.vscode/
