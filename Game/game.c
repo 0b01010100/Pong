@@ -1,11 +1,14 @@
 #include <SDL3/SDL.h>
 #include <game.h>
-typedef SDL_FRect wall;
+typedef SDL_FRect wall, ball, paddle;
 typedef struct{
     wall left;
     wall top;
     wall right;
     wall bottom;
+    paddle paddle; 
+    float thickness;
+    ball ball; 
 }scene;
 typedef struct _game{
     scene scene;
@@ -60,6 +63,9 @@ game * game_Construct()
         free(game);
         return false;
     }
+    game->scene.thickness = 15;
+    game->scene.paddle.h = 100;
+    game->scene.paddle.w = game->scene.thickness;
     return game;
 }
 
@@ -76,7 +82,6 @@ bool game_ProcessInput(game *game)
         }
     }
     
-
     //get keyboard state
     const Uint8* state = SDL_GetKeyboardState(NULL);
 
@@ -84,7 +89,15 @@ bool game_ProcessInput(game *game)
     {
         game->isRunning = false;
     }
-    return true;
+    if(state[SDL_SCANCODE_W])
+    {
+        game->scene.paddle.y -= 1;
+    }
+    if(state[SDL_SCANCODE_S])
+    {
+        game->scene.paddle.y += 1;
+    }
+    return game->isRunning;
 }
 
 void game_Update(game *game)
@@ -116,6 +129,20 @@ void game_Update(game *game)
     game->scene.bottom.h = 15;
     game->scene.bottom.y = height-15;
     SDL_RenderFillRect(game->renderer, &game->scene.bottom);
+    //paddle
+    SDL_SetRenderDrawColor
+    (
+        game->renderer, // renderer
+        255,
+        0,
+        0,
+        0
+    );
+    paddle p = game->scene.paddle;
+    p.y = p.y - p.h/2; 
+    SDL_RenderFillRect(game->renderer, &p);
+    //ball
+
     SDL_SetRenderDrawColor
     (
         game->renderer, // renderer
@@ -124,7 +151,7 @@ void game_Update(game *game)
         0,
         0
     );
-    
+
     SDL_RenderPresent(game->renderer);
    
 }
