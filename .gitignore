@@ -1,4 +1,5 @@
 Vendor/*
+!Vendor/
 out/
 build/
 .vs/

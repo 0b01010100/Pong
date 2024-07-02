@@ -3,7 +3,7 @@
 #include <stdbool.h>
 typedef struct _game game;
 
-bool game_Construct(game * game);
+game * game_Construct();
 
 bool game_ProcessInput(game * game);
 

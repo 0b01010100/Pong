@@ -1,33 +1,66 @@
 #include <SDL3/SDL.h>
 #include <game.h>
-
+typedef SDL_FRect wall;
+typedef struct{
+    wall left;
+    wall top;
+    wall right;
+    wall bottom;
+}scene;
 typedef struct _game{
+    scene scene;
     SDL_Window * window;
+    SDL_Renderer * renderer;
     bool isRunning;
+
 }game;
 
-bool game_Construct(game *game)
+game * game_Construct()
 {
-    int adlResualt = SDL_Init(SDL_INIT_VIDEO);//init Graphics Engine
+    //Initialize SDL
+    int adlResualt = SDL_Init(SDL_INIT_VIDEO);
     if (adlResualt != 0)
     {
         SDL_Log("faild To Init SDL");
         return false;        
     }
-    game = malloc(sizeof(struct _game));
+
+    //Game creation
+    game * game = malloc(sizeof(struct _game));
+
+    //window creation
     game->window = SDL_CreateWindow(
         "Pong Game",
-        1024,    //Pos X
-        768,    //Pos Y
-        100,   //Width
-        100,    //Height
+        1024,   //Width 
+        768,    //Height
+        100,    //Pos X
+        100,    //Pos Y
         SDL_WINDOW_RESIZABLE       //Flags
     );
+
     if(!game->window)
     {
-        SDL_Log("faild To Create Game Window: $s", SDL_GetError()); 
+        SDL_Log("Failed to create game window: %s", SDL_GetError());
+        // Clean up on failure
+        free(game); 
         return false;
     }
+
+    //renderer creation
+    game->renderer = SDL_CreateRenderer
+    (
+        game->window,   //window
+        NULL
+    );
+    if(!game->renderer)
+    {
+        SDL_Log("Failed to create game renderer: %s", SDL_GetError());
+        // Clean up on failure
+        SDL_DestroyWindow(game->window); 
+        free(game);
+        return false;
+    }
+    return game;
 }
 
 bool game_ProcessInput(game *game)
@@ -42,7 +75,7 @@ bool game_ProcessInput(game *game)
             break;
         }
     }
-    return true;
+    
 
     //get keyboard state
     const Uint8* state = SDL_GetKeyboardState(NULL);
@@ -51,14 +84,55 @@ bool game_ProcessInput(game *game)
     {
         game->isRunning = false;
     }
+    return true;
 }
 
 void game_Update(game *game)
 {
+    SDL_RenderClear(game->renderer);
+    SDL_SetRenderDrawColor
+    (
+        game->renderer, // renderer
+        0, 
+        0,
+        255,
+        255
+    );
+    int width, height;
+    SDL_GetWindowSize(game->window, &width, &height);
+
+    //top
+    game->scene.top.w = width;
+    game->scene.top.h = 15;
+    SDL_RenderFillRect(game->renderer, &game->scene.top);
+    //right
+    game->scene.right.w = 15;
+    game->scene.right.h = height-30;
+    game->scene.right.y = 15;
+    game->scene.right.x = width - 15;
+    SDL_RenderFillRect(game->renderer, &game->scene.right);
+    //bottom
+    game->scene.bottom.w = width;
+    game->scene.bottom.h = 15;
+    game->scene.bottom.y = height-15;
+    SDL_RenderFillRect(game->renderer, &game->scene.bottom);
+    SDL_SetRenderDrawColor
+    (
+        game->renderer, // renderer
+        0,
+        0,
+        0,
+        0
+    );
+    
+    SDL_RenderPresent(game->renderer);
+   
 }
 
 void game_Destruct(game *game)
 {
+    SDL_DestroyRenderer(game->renderer);
     SDL_DestroyWindow(game->window);
+    free(game);
     SDL_Quit();//uninit SDL
 }
