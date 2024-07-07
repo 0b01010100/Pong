@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <game.h>
+#include <stdio.h>
 typedef SDL_FRect wall, ball, paddle;
 typedef struct{
     wall left;
@@ -14,6 +15,9 @@ typedef struct _game{
     scene scene;
     SDL_Window * window;
     SDL_Renderer * renderer;
+    Uint64 lastTime;
+    Uint64 currentTime;
+    float deltaTime;
     bool isRunning;
 
 }game;
@@ -21,10 +25,11 @@ typedef struct _game{
 game * game_Construct()
 {
     //Initialize SDL
-    int adlResualt = SDL_Init(SDL_INIT_VIDEO);
+    int adlResualt = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER);
     if (adlResualt != 0)
     {
         SDL_Log("faild To Init SDL");
+        printf("d");
         return false;        
     }
 
@@ -66,6 +71,8 @@ game * game_Construct()
     game->scene.thickness = 15;
     game->scene.paddle.h = 100;
     game->scene.paddle.w = game->scene.thickness;
+    game->lastTime = SDL_GetTicks();
+    game->isRunning = true;
     return game;
 }
 
@@ -91,17 +98,24 @@ bool game_ProcessInput(game *game)
     }
     if(state[SDL_SCANCODE_W])
     {
-        game->scene.paddle.y -= 1;
+        game->scene.paddle.y -= 2;
     }
     if(state[SDL_SCANCODE_S])
     {
-        game->scene.paddle.y += 1;
+        game->scene.paddle.y += 2;
     }
     return game->isRunning;
 }
 
+#define FRAME_RATE 60
+#define FRAME_DELAY (1000 / FRAME_RATE)
+
 void game_Update(game *game)
 {
+    game->currentTime = SDL_GetTicks();
+    game->deltaTime = (game->currentTime - game->lastTime) / 1000.0f;
+    game->lastTime = game->currentTime;
+    
     SDL_RenderClear(game->renderer);
     SDL_SetRenderDrawColor
     (
@@ -133,10 +147,10 @@ void game_Update(game *game)
     SDL_SetRenderDrawColor
     (
         game->renderer, // renderer
-        255,
-        0,
-        0,
-        0
+        255, // red
+        0, // blue
+        0, //green
+        0  //alpha
     );
     paddle p = game->scene.paddle;
     p.y = p.y - p.h/2; 
@@ -146,20 +160,29 @@ void game_Update(game *game)
     SDL_SetRenderDrawColor
     (
         game->renderer, // renderer
-        0,
-        0,
-        0,
-        0
+        0,// red
+        0,// blue
+        0,//green
+        0 //alpha
     );
-
+    
+    //show drawing
     SDL_RenderPresent(game->renderer);
    
+    Uint32 frameTime = SDL_GetTicks() - game->currentTime;
+
+    if (frameTime < FRAME_DELAY) {
+           SDL_Delay(FRAME_DELAY - frameTime);
+    }
 }
 
 void game_Destruct(game *game)
 {
-    SDL_DestroyRenderer(game->renderer);
-    SDL_DestroyWindow(game->window);
-    free(game);
-    SDL_Quit();//uninit SDL
+    if (game)
+    {
+        SDL_DestroyRenderer(game->renderer);
+        SDL_DestroyWindow(game->window);
+        free(game);
+        SDL_Quit();//uninit SDL
+    }
 }
