@@ -11,4 +11,4 @@ file(GLOB_RECURSE PONG_SOURCES CONFIGURE_DEPENDS "Game/*.c")
 
 add_executable(PONG ${PONG_SOURCES})
 target_include_directories(PONG PUBLIC Game/ Vendor/SDL)
-target_link_libraries(PONG PUBLIC PUBLIC SDL3::SDL3)
+target_link_libraries(PONG PUBLIC PUBLIC SDL2::SDL2)

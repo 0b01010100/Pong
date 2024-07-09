@@ -1,4 +1,3 @@
-Vendor/*
-!Vendor/
+Vendor/
 out/
 build/

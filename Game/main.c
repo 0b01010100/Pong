@@ -9,7 +9,7 @@ int main()
         }
         while(game_ProcessInput(game)) 
         {
-        game_Update(game);
+            game_Update(game);
         }
         game_Destruct(game);
     return 0;

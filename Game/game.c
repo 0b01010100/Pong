@@ -1,22 +1,22 @@
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
 #include <game.h>
 #include <stdio.h>
-typedef SDL_FRect wall, ball, paddle;
+typedef SDL_Rect wall, ball, paddle;
+#define thickness 15
 typedef struct{
     wall left;
     wall top;
     wall right;
     wall bottom;
     paddle paddle; 
-    float thickness;
     ball ball; 
 }scene;
 typedef struct _game{
     scene scene;
     SDL_Window * window;
     SDL_Renderer * renderer;
-    Uint64 lastTime;
-    Uint64 currentTime;
+    Uint32 lastTime;
+    Uint32 currentTime;
     float deltaTime;
     bool isRunning;
 
@@ -29,7 +29,6 @@ game * game_Construct()
     if (adlResualt != 0)
     {
         SDL_Log("faild To Init SDL");
-        printf("d");
         return false;        
     }
 
@@ -39,11 +38,11 @@ game * game_Construct()
     //window creation
     game->window = SDL_CreateWindow(
         "Pong Game",
-        1024,   //Width 
-        768,    //Height
-        100,    //Pos X
-        100,    //Pos Y
-        SDL_WINDOW_RESIZABLE       //Flags
+        SDL_WINDOWPOS_CENTERED,   //Width 
+        SDL_WINDOWPOS_CENTERED,    //Height
+        1024,    //Pos X
+        768,    //Pos Y
+        0       //Flags
     );
 
     if(!game->window)
@@ -51,14 +50,16 @@ game * game_Construct()
         SDL_Log("Failed to create game window: %s", SDL_GetError());
         // Clean up on failure
         free(game); 
+        SDL_Quit();//uninit SDL
         return false;
     }
 
     //renderer creation
     game->renderer = SDL_CreateRenderer
     (
-        game->window,   //window
-        NULL
+        game->window,   //Window
+        -1,             //Index of rendering driver
+        0               //NULL flages
     );
     if(!game->renderer)
     {
@@ -66,13 +67,20 @@ game * game_Construct()
         // Clean up on failure
         SDL_DestroyWindow(game->window); 
         free(game);
+        SDL_Quit();//uninit SDL
         return false;
     }
-    game->scene.thickness = 15;
-    game->scene.paddle.h = 100;
-    game->scene.paddle.w = game->scene.thickness;
-    game->lastTime = SDL_GetTicks();
-    game->isRunning = true;
+    //Set initial properties for the paddle
+    game->scene.paddle.h = 100;// Height of the paddle
+    game->scene.paddle.w = thickness;// Width of the paddle 
+    //get widow width and height
+    int width, height;
+    SDL_GetWindowSize(game->window, &width, &height);
+    game->scene.paddle.y = (height / 2) - (game->scene.paddle.h / 2);// Center paddle vertically
+    game->scene.paddle.x = 17;//Initial X position of the paddle
+    game->lastTime = SDL_GetTicks();//Initialize lastTime with current SDL ticks
+    game->isRunning = true; //Set game state to running
+
     return game;
 }
 
@@ -83,7 +91,7 @@ bool game_ProcessInput(game *game)
     {
         switch (event.type)
         {
-        case SDL_EVENT_QUIT:
+        case SDL_QUIT:
             game->isRunning = false;
             break;
         }
@@ -112,67 +120,70 @@ bool game_ProcessInput(game *game)
 
 void game_Update(game *game)
 {
+    // Get the current time in milliseconds since SDL initialization
     game->currentTime = SDL_GetTicks();
+    // Calculate deltaTime (time elapsed since last frame) in seconds
     game->deltaTime = (game->currentTime - game->lastTime) / 1000.0f;
+    // Update lastTime to current time for the next frame calculation
     game->lastTime = game->currentTime;
-    
+
+    //clear buffer
     SDL_RenderClear(game->renderer);
-    SDL_SetRenderDrawColor
-    (
-        game->renderer, // renderer
-        0, 
-        0,
-        255,
-        255
-    );
+
+    //change color to draw with
+    SDL_SetRenderDrawColor(game->renderer, 0, 0, 255, 255);
+
+    //get windpw width and height
     int width, height;
     SDL_GetWindowSize(game->window, &width, &height);
 
-    //top
+    //draw top boarder
     game->scene.top.w = width;
-    game->scene.top.h = 15;
+    game->scene.top.h = thickness;
+    game->scene.top.x = 0;
+    game->scene.top.y = 0;
     SDL_RenderFillRect(game->renderer, &game->scene.top);
-    //right
-    game->scene.right.w = 15;
-    game->scene.right.h = height-30;
-    game->scene.right.y = 15;
-    game->scene.right.x = width - 15;
-    SDL_RenderFillRect(game->renderer, &game->scene.right);
-    //bottom
-    game->scene.bottom.w = width;
-    game->scene.bottom.h = 15;
-    game->scene.bottom.y = height-15;
-    SDL_RenderFillRect(game->renderer, &game->scene.bottom);
-    //paddle
-    SDL_SetRenderDrawColor
-    (
-        game->renderer, // renderer
-        255, // red
-        0, // blue
-        0, //green
-        0  //alpha
-    );
-    paddle p = game->scene.paddle;
-    p.y = p.y - p.h/2; 
-    SDL_RenderFillRect(game->renderer, &p);
-    //ball
 
-    SDL_SetRenderDrawColor
-    (
-        game->renderer, // renderer
-        0,// red
-        0,// blue
-        0,//green
-        0 //alpha
-    );
+    //draw right board
+    game->scene.top.w = thickness;
+    game->scene.top.h = height;
+    game->scene.top.x = width - thickness;
+    game->scene.top.y = 0;
+    SDL_RenderFillRect(game->renderer, &game->scene.top);
+
+    //draw bottom board
+    game->scene.top.w = width;
+    game->scene.top.h = thickness;
+    game->scene.top.x = 0;
+    game->scene.top.y = height - thickness;
+    SDL_RenderFillRect(game->renderer, &game->scene.top);
     
-    //show drawing
+    //change color to draw with
+    SDL_SetRenderDrawColor(game->renderer,255, 0, 0, 255);
+
+    //draw paddle
+    //check for paddle collisions on the top boarder 
+    if(game->scene.paddle.y < 0 + thickness){
+        game->scene.paddle.y = 0 + thickness;
+    }
+    //check for paddle collisions on the bottom boarder 
+    else if(game->scene.paddle.y > height - thickness - 100){
+        game->scene.paddle.y = (height - thickness) - 100;
+    }
+    SDL_RenderFillRect(game->renderer, &game->scene.paddle);
+
+    //change color to draw with
+    SDL_SetRenderDrawColor(game->renderer,0,0,0,0);
+    
+    //show drawings
     SDL_RenderPresent(game->renderer);
    
+    //get time spent of this frame
     Uint32 frameTime = SDL_GetTicks() - game->currentTime;
 
+    //dealy the next frame basied on the difference between FRAME_DELAY and frame time 
     if (frameTime < FRAME_DELAY) {
-           SDL_Delay(FRAME_DELAY - frameTime);
+        SDL_Delay(FRAME_DELAY - frameTime);
     }
 }
 
