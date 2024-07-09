@@ -10,6 +10,7 @@ typedef struct{
     wall bottom;
     paddle paddle; 
     ball ball; 
+    float paddleDir;
 }scene;
 typedef struct _game{
     scene scene;
@@ -78,9 +79,13 @@ game * game_Construct()
     SDL_GetWindowSize(game->window, &width, &height);
     game->scene.paddle.y = (height / 2) - (game->scene.paddle.h / 2);// Center paddle vertically
     game->scene.paddle.x = 17;//Initial X position of the paddle
+    //Set initial properties for the paddle
+    game->scene.ball.h = thickness;
+    game->scene.ball.w = thickness;
+    game->scene.ball.y = (height / 2);
+    game->scene.ball.x = (width / 2);
     game->lastTime = SDL_GetTicks();//Initialize lastTime with current SDL ticks
     game->isRunning = true; //Set game state to running
-
     return game;
 }
 
@@ -99,18 +104,18 @@ bool game_ProcessInput(game *game)
     
     //get keyboard state
     const Uint8* state = SDL_GetKeyboardState(NULL);
-
+    game->scene.paddleDir = 0.0f;
     if(state[SDL_SCANCODE_ESCAPE])
     {
         game->isRunning = false;
     }
     if(state[SDL_SCANCODE_W])
     {
-        game->scene.paddle.y -= 2;
+        game->scene.paddleDir -= 2.0f;
     }
     if(state[SDL_SCANCODE_S])
     {
-        game->scene.paddle.y += 2;
+        game->scene.paddleDir += 2.0f;
     }
     return game->isRunning;
 }
@@ -163,6 +168,7 @@ void game_Update(game *game)
 
     //draw paddle
     //check for paddle collisions on the top boarder 
+    game->scene.paddle.y += (float)game->scene.paddleDir * game->deltaTime * 300.0f;
     if(game->scene.paddle.y < 0 + thickness){
         game->scene.paddle.y = 0 + thickness;
     }
@@ -172,6 +178,10 @@ void game_Update(game *game)
     }
     SDL_RenderFillRect(game->renderer, &game->scene.paddle);
 
+    //change color to draw with
+    SDL_SetRenderDrawColor(game->renderer,0,255,0,0);
+    
+    SDL_RenderFillRect(game->renderer, &game->scene.ball);
     //change color to draw with
     SDL_SetRenderDrawColor(game->renderer,0,0,0,0);
     
