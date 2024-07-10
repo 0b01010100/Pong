@@ -4,13 +4,11 @@
 typedef SDL_Rect wall, ball, paddle;
 #define thickness 15
 typedef struct{
-    wall left;
-    wall top;
-    wall right;
-    wall bottom;
     paddle paddle; 
     ball ball; 
     float paddleDir;
+    float mBallVelx;
+    float mBallVely;
 }scene;
 typedef struct _game{
     scene scene;
@@ -39,11 +37,11 @@ game * game_Construct()
     //window creation
     game->window = SDL_CreateWindow(
         "Pong Game",
-        SDL_WINDOWPOS_CENTERED,   //Width 
-        SDL_WINDOWPOS_CENTERED,    //Height
-        1024,    //Pos X
-        768,    //Pos Y
-        0       //Flags
+        SDL_WINDOWPOS_CENTERED,  //Pos X 
+        SDL_WINDOWPOS_CENTERED,  //Pos Y
+        1024,   //Width 
+        768,   //Height
+        0U        //Flags
     );
 
     if(!game->window)
@@ -60,7 +58,7 @@ game * game_Construct()
     (
         game->window,   //Window
         -1,             //Index of rendering driver
-        0               //NULL flages
+        0U               //NULL flages
     );
     if(!game->renderer)
     {
@@ -71,19 +69,20 @@ game * game_Construct()
         SDL_Quit();//uninit SDL
         return false;
     }
+    
     //Set initial properties for the paddle
     game->scene.paddle.h = 100;// Height of the paddle
     game->scene.paddle.w = thickness;// Width of the paddle 
     //get widow width and height
-    int width, height;
-    SDL_GetWindowSize(game->window, &width, &height);
-    game->scene.paddle.y = (height / 2) - (game->scene.paddle.h / 2);// Center paddle vertically
-    game->scene.paddle.x = 17;//Initial X position of the paddle
+    game->scene.paddle.y = 1024/2;// Center paddle vertically
+    game->scene.paddle.x = 10;//Initial X position of the paddle
     //Set initial properties for the paddle
     game->scene.ball.h = thickness;
     game->scene.ball.w = thickness;
-    game->scene.ball.y = (height / 2);
-    game->scene.ball.x = (width / 2);
+    game->scene.ball.y = (1024 / 2) - thickness;
+    game->scene.ball.x = (768 / 2) - thickness;
+    game->scene.mBallVelx = -200.0f;
+    game->scene.mBallVely = 235.0f;
     game->lastTime = SDL_GetTicks();//Initialize lastTime with current SDL ticks
     game->isRunning = true; //Set game state to running
     return game;
@@ -132,6 +131,12 @@ void game_Update(game *game)
     // Update lastTime to current time for the next frame calculation
     game->lastTime = game->currentTime;
 
+    // limit the delta time to a max value
+    if (game->deltaTime > 0.05f)
+	{
+		game->deltaTime = 0.05f;
+	}
+
     //clear buffer
     SDL_RenderClear(game->renderer);
 
@@ -142,46 +147,90 @@ void game_Update(game *game)
     int width, height;
     SDL_GetWindowSize(game->window, &width, &height);
 
+    wall Wall = (wall){
+		0,			// Top left x
+		0,			// Top left y
+		1024,		// Width
+		thickness	// Height
+	};
     //draw top boarder
-    game->scene.top.w = width;
-    game->scene.top.h = thickness;
-    game->scene.top.x = 0;
-    game->scene.top.y = 0;
-    SDL_RenderFillRect(game->renderer, &game->scene.top);
+    SDL_RenderFillRect(game->renderer, &Wall);
+    
+    //draw bottom board
+    Wall.y = 768 - thickness;
+    SDL_RenderFillRect(game->renderer, &Wall);
 
     //draw right board
-    game->scene.top.w = thickness;
-    game->scene.top.h = height;
-    game->scene.top.x = width - thickness;
-    game->scene.top.y = 0;
-    SDL_RenderFillRect(game->renderer, &game->scene.top);
-
-    //draw bottom board
-    game->scene.top.w = width;
-    game->scene.top.h = thickness;
-    game->scene.top.x = 0;
-    game->scene.top.y = height - thickness;
-    SDL_RenderFillRect(game->renderer, &game->scene.top);
+	Wall.x = 1024 - thickness;
+	Wall.y = 0;
+	Wall.w = thickness;
+	Wall.h = 1024;
+    SDL_RenderFillRect(game->renderer, &Wall);
     
     //change color to draw with
     SDL_SetRenderDrawColor(game->renderer,255, 0, 0, 255);
 
     //draw paddle
     //check for paddle collisions on the top boarder 
-    game->scene.paddle.y += (float)game->scene.paddleDir * game->deltaTime * 300.0f;
-    if(game->scene.paddle.y < 0 + thickness){
-        game->scene.paddle.y = 0 + thickness;
+    if (game->scene.paddleDir != 0)
+    {
+        game->scene.paddle.y += (int)(game->scene.paddleDir * game->deltaTime * 300.0f);
+        if(game->scene.paddle.y < game->scene.paddle.h / 2 + thickness){
+            game->scene.paddle.y = game->scene.paddle.h / 2 + thickness;
+        }
+        //check for paddle collisions on the bottom boarder 
+        else if(game->scene.paddle.y > (height - (game->scene.paddle.h / 2) ) - thickness){
+            game->scene.paddle.y = (height - (game->scene.paddle.h / 2) ) - thickness;
+        }
     }
-    //check for paddle collisions on the bottom boarder 
-    else if(game->scene.paddle.y > height - thickness - 100){
-        game->scene.paddle.y = (height - thickness) - 100;
-    }
-    SDL_RenderFillRect(game->renderer, &game->scene.paddle);
+    paddle p = game->scene.paddle;
+    p.y -= p.h/2;
+    SDL_RenderFillRect(game->renderer, &p);
 
     //change color to draw with
     SDL_SetRenderDrawColor(game->renderer,0,255,0,0);
     
-    SDL_RenderFillRect(game->renderer, &game->scene.ball);
+    // Use velocity to update ball position
+    game->scene.ball.x += (int)(game->scene.mBallVelx * game->deltaTime);
+    game->scene.ball.y += (int)(game->scene.mBallVely * game->deltaTime);
+
+    //Bounce ball
+    int diff = (game->scene.paddle.y - game->scene.ball.y);
+    diff = (diff > 0) ? diff : -diff;
+    if
+    (
+        diff <= game->scene.paddle.h / 2 &&
+        game->scene.ball.x <= 25 && game->scene.ball.x >= 20 &&
+        game->scene.mBallVelx < 0
+    )
+    {
+        game->scene.mBallVelx *= -1;
+    }
+    //game over if ball when past the left side of the window
+    else if(game->scene.ball.x <= 0)
+    {
+        game->isRunning = false;
+    }
+    //check if ball hit the right boarder if so bouce it back
+    else if(game->scene.ball.x >= (1024 - thickness) && game->scene.mBallVelx > 0)
+    {
+        game->scene.mBallVelx *= -1;
+    }
+    
+    //check if ball hit the top boarder if so bouce it back?
+	if (game->scene.ball.y <= thickness)
+	{
+		game->scene.mBallVely *= -1;
+	}
+    else if(game->scene.ball.y >= (768 - thickness) && game->scene.mBallVely > 0)
+    {
+        game->scene.mBallVely *= -1;
+    }
+    ball b = game->scene.ball;
+    b.x -= thickness/2;
+    b.y -= thickness/2;
+    SDL_RenderFillRect(game->renderer, &b);
+
     //change color to draw with
     SDL_SetRenderDrawColor(game->renderer,0,0,0,0);
     
